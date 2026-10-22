@@ -1,15 +1,16 @@
 import * as SecureStore from 'expo-secure-store';
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
-import { Platform } from 'react-native';
+import { AppState, Platform } from 'react-native';
 
 import { loginRequest, type SessionUser } from '@/api/auth';
 import { setAuthBridge } from '@/api/client';
+import { refreshSenders, startCapture, stopCapture } from '@/capture/startCapture';
 
 const TOKEN_KEY = 'auth_token';
 const USER_KEY = 'auth_user';
 
 // SecureStore has no web support: fall back to localStorage so the app can be checked in a browser.
-const store = {
+export const store = {
   get: async (k: string) => (Platform.OS === 'web' ? localStorage.getItem(k) : SecureStore.getItemAsync(k)),
   set: async (k: string, v: string) =>
     Platform.OS === 'web' ? localStorage.setItem(k, v) : SecureStore.setItemAsync(k, v),
@@ -32,6 +33,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   const signOut = useCallback(async () => {
+    await stopCapture().catch(() => {}); // stop the native service
     setAuthBridge(null, async () => {});
     setToken(null);
     setUser(null);
@@ -58,6 +60,16 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       }
     })();
   }, [signOut]);
+
+  // Start capture once signed in (login or restored session); refresh senders at each app foreground.
+  useEffect(() => {
+    if (!token) return;
+    startCapture().catch(() => {}); // unavailable off Android: Accueil shows it
+    const sub = AppState.addEventListener('change', (s) => {
+      if (s === 'active') refreshSenders().catch(() => {});
+    });
+    return () => sub.remove();
+  }, [token]);
 
   const signIn = useCallback(async (email: string, password: string) => {
     const res = await loginRequest(email, password); // throws for non-admin: nothing is stored
