@@ -148,7 +148,7 @@ const styles = StyleSheet.create({
   side: { flexGrow: 1, flexBasis: 240, marginBottom: 0 },
   sideTitle: { fontWeight: '700', color: colors.text, marginBottom: 8 },
   field: { marginBottom: 6, padding: 4, borderRadius: 8 },
-  flag: { backgroundColor: '#FFE3B3' },
+  flag: { backgroundColor: colors.warningSurface },
   label: { color: colors.textSecondary, fontSize: 13 },
   value: { color: colors.text, fontSize: 15, fontWeight: '600' },
   check: { flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 14 },
@@ -157,5 +157,5 @@ const styles = StyleSheet.create({
   warn: { color: colors.warningText, fontWeight: '700', marginTop: 12 },
   button: { backgroundColor: colors.green, borderRadius: 12, paddingVertical: 14, alignItems: 'center', marginTop: 16 },
   buttonOff: { opacity: 0.4 },
-  buttonText: { color: '#000000', fontWeight: '700', fontSize: 16 },
+  buttonText: { color: colors.onGreen, fontWeight: '700', fontSize: 16 },
 });

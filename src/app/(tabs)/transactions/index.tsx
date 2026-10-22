@@ -1,9 +1,9 @@
-import { useInfiniteQuery } from '@tanstack/react-query';
+import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, FlatList, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
-import { fmtMontant } from '@/api/sms';
+import { fmtMontant, getSms } from '@/api/sms';
 import { listTransactions, STATUT_LABEL, type ListTransactionsParams, type Transaction } from '@/api/transactions';
 import { Card } from '@/components/Card';
 import { Screen } from '@/components/Screen';
@@ -49,14 +49,20 @@ export default function TransactionsList() {
       }),
     getNextPageParam: (last, pages) => (last.hasMore ? pages.length + 1 : undefined),
   });
+  // Selection ends once the SMS is attributed (assign invalidates ['sms'], which refetches this).
+  const smsToAssign = useQuery({ queryKey: ['sms', 'detail', selectForSms], enabled: !!selectForSms, queryFn: () => getSms(selectForSms!) });
+  const selecting = !!selectForSms && smsToAssign.data?.statut !== 'ATTRIBUE';
   const items = q.data?.pages.flatMap((p) => p.items) ?? [];
 
+  // A payment cannot go to a validated, cancelled or admin-rejected transaction.
+  const blocked = (t: Transaction) =>
+    t.statut === 'VALIDEE' || t.statut === 'ANNULEE' || (t.statut === 'REJETEE' && !!t.valideParId);
   const open = (t: Transaction) =>
-    router.push(selectForSms ? `/assign?smsId=${selectForSms}&transactionId=${t.trackingId}` : `/transactions/${t.trackingId}`);
+    router.push(selecting ? `/assign?smsId=${selectForSms}&transactionId=${t.trackingId}` : `/transactions/${t.trackingId}`);
 
   const header = (
     <View style={styles.header}>
-      {selectForSms ? <Text style={styles.banner}>Choisissez la transaction à laquelle attribuer ce SMS.</Text> : null}
+      {selecting ? <Text style={styles.banner}>Choisissez la transaction à laquelle attribuer ce SMS.</Text> : null}
       <TextInput
         style={styles.search}
         placeholder="Rechercher (client, numéro, référence)"
@@ -109,7 +115,11 @@ export default function TransactionsList() {
         renderItem={({ item: t }) => {
           const st = STATUT_LABEL[t.statut] ?? { label: t.statut, tone: 'neutral' as const };
           return (
-            <Pressable accessibilityRole="button" onPress={() => open(t)}>
+            <Pressable
+              accessibilityRole="button"
+              disabled={selecting && blocked(t)}
+              style={selecting && blocked(t) ? styles.blocked : undefined}
+              onPress={() => open(t)}>
               <Card accent={t.captureReconciliationRequired ? colors.warning : undefined}>
                 <View style={styles.row}>
                   <Text style={styles.name} numberOfLines={1}>{t.userName || '—'}</Text>
@@ -121,6 +131,7 @@ export default function TransactionsList() {
                 <Text style={styles.meta}>{new Date(t.createdAt).toLocaleString('fr-FR')}</Text>
                 <View style={styles.pills}>
                   <StatusPill label={st.label} tone={st.tone} />
+                  {selecting && blocked(t) ? <StatusPill label="Ne peut pas recevoir ce paiement" tone="neutral" /> : null}
                   {t.captureReconciliationRequired ? <StatusPill label="À rapprocher" tone="warning" /> : null}
                 </View>
               </Card>
@@ -148,11 +159,12 @@ const styles = StyleSheet.create({
   chip: { borderRadius: 999, borderWidth: 1, borderColor: colors.border, paddingHorizontal: 12, paddingVertical: 6, marginRight: 8, backgroundColor: colors.bg },
   chipOn: { backgroundColor: colors.green, borderColor: colors.green },
   chipText: { color: colors.textSecondary, fontWeight: '600', fontSize: 13 },
-  chipTextOn: { color: '#000000' },
+  chipTextOn: { color: colors.onGreen },
   row: { flexDirection: 'row', justifyContent: 'space-between', gap: 8 },
   name: { color: colors.text, fontWeight: '700', fontSize: 15, flex: 1 },
   amount: { color: colors.greenText, fontWeight: '700' },
   meta: { color: colors.textSecondary, marginTop: 2, fontSize: 13 },
+  blocked: { opacity: 0.45 },
   pills: { flexDirection: 'row', gap: 6, marginTop: 8, flexWrap: 'wrap' },
   err: { color: colors.errorText, marginTop: 24, textAlign: 'center' },
   empty: { color: colors.textSecondary, textAlign: 'center', marginTop: 24 },

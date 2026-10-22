@@ -9,5 +9,7 @@ export const colors = {
   error: '#FF4444',
   errorText: '#B3261E',
   warning: '#FFA500',
+  warningSurface: '#FFE3B3',
+  onGreen: '#000000', // text on green surfaces
   warningText: '#8F5200',
 } as const;

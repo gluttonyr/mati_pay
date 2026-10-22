@@ -9,6 +9,7 @@ export type Transaction = {
   operateur?: string;
   numeroTelephone?: string;
   referencePaiement?: string;
+  valideParId?: number;
   captureReconciliationRequired: boolean;
   motifRejet?: string | null;
   createdAt: string;
