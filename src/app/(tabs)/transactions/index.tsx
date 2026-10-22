@@ -51,7 +51,7 @@ export default function TransactionsList() {
   });
   // Selection ends once the SMS is attributed (assign invalidates ['sms'], which refetches this).
   const smsToAssign = useQuery({ queryKey: ['sms', 'detail', selectForSms], enabled: !!selectForSms, queryFn: () => getSms(selectForSms!) });
-  const selecting = !!selectForSms && smsToAssign.data?.statut !== 'ATTRIBUE';
+  const selecting = !!selectForSms && smsToAssign.isSuccess && smsToAssign.data.statut !== 'ATTRIBUE';
   const items = q.data?.pages.flatMap((p) => p.items) ?? [];
 
   // A payment cannot go to a validated, cancelled or admin-rejected transaction.
@@ -63,6 +63,8 @@ export default function TransactionsList() {
   const header = (
     <View style={styles.header}>
       {selecting ? <Text style={styles.banner}>Choisissez la transaction à laquelle attribuer ce SMS.</Text> : null}
+      {selectForSms && smsToAssign.isLoading ? <Text style={styles.banner}>Chargement du SMS…</Text> : null}
+      {selectForSms && smsToAssign.isError ? <Text style={styles.err}>SMS introuvable : sélection impossible.</Text> : null}
       <TextInput
         style={styles.search}
         placeholder="Rechercher (client, numéro, référence)"
