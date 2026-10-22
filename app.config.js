@@ -30,7 +30,7 @@ export default ({ config }) => ({
         imageWidth: 76,
       },
     ],
-    // TODO(B2): add the native sms-reader plugin here (modules/sms-reader).
+    // modules/sms-reader is autolinked from modules/; its AndroidManifest (permissions, receivers, service) is merged by Gradle, so no config plugin is needed.
   ],
   experiments: { typedRoutes: true, reactCompiler: true },
   extra: {
