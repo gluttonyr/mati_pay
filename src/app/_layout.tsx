@@ -22,6 +22,7 @@ function RootNavigator() {
       <Stack.Protected guard={!!token}>
         <Stack.Screen name="(tabs)" />
         <Stack.Screen name="onboarding" />
+        <Stack.Screen name="assign" options={{ headerShown: true, title: 'Attribution', presentation: 'modal' }} />
       </Stack.Protected>
       <Stack.Protected guard={!token}>
         <Stack.Screen name="login" />

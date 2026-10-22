@@ -1,5 +1,0 @@
-import { Screen } from '@/components/Screen';
-
-export default function Page() {
-  return <Screen title="Transactions" />;
-}

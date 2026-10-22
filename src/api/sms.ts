@@ -41,3 +41,18 @@ export const smsCandidates = async (transactionId: string) =>
 
 export const fmtMontant = (m: number | string | null) =>
   m == null ? '—' : `${Number(m).toLocaleString('fr-FR')} FCFA`;
+
+export type AssignResult = { transactionId: string; creditSucceeded: boolean };
+
+export const assignSms = async (smsId: string, transactionId: string, confirmPhoneMismatch: boolean) =>
+  (await client.post(`/sms-capture/${smsId}/assign`, { transactionId, confirmPhoneMismatch })).data.data as AssignResult;
+
+// Backend phonesMatch: digits only, equal or the shorter (>= 8 digits) is a suffix of the longer.
+export const phonesMatch = (first: string, second: string) => {
+  const a = first.replace(/\D/g, '');
+  const b = second.replace(/\D/g, '');
+  if (!a || !b) return false;
+  if (a === b) return true;
+  const [s, l] = a.length < b.length ? [a, b] : [b, a];
+  return s.length >= 8 && l.endsWith(s);
+};
