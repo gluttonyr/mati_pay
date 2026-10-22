@@ -1,6 +1,5 @@
 import axios from 'axios';
 import Constants from 'expo-constants';
-import { router } from 'expo-router';
 
 // eslint-disable-next-line import/no-named-as-default-member
 const client = axios.create({
@@ -28,7 +27,6 @@ client.interceptors.response.use(
     // A 401 without a session is just a wrong password on /auth/login: only authenticated calls mean an expired session.
     if (error.response?.status === 401 && currentToken) {
       await onUnauthorized();
-      router.replace('/login');
     }
     return Promise.reject(error);
   },

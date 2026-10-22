@@ -31,14 +31,25 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<SessionUser | null>(null);
   const [loading, setLoading] = useState(true);
 
+  const signOut = useCallback(async () => {
+    setAuthBridge(null, async () => {});
+    setToken(null);
+    setUser(null);
+    await Promise.all([store.del(TOKEN_KEY), store.del(USER_KEY)]).catch(() => {});
+  }, []);
+
   useEffect(() => {
     (async () => {
       try {
         const t = await store.get(TOKEN_KEY);
         const u = await store.get(USER_KEY);
-        if (t && u) {
+        const parsed: SessionUser | null = t && u ? JSON.parse(u) : null;
+        if (t && parsed?.role === 'ADMIN') {
+          setAuthBridge(t, signOut);
           setToken(t);
-          setUser(JSON.parse(u));
+          setUser(parsed);
+        } else if (t || u) {
+          await signOut(); // stored session is not an admin one
         }
       } catch {
         // unreadable store: start signed out
@@ -46,24 +57,16 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         setLoading(false);
       }
     })();
-  }, []);
-
-  const signOut = useCallback(async () => {
-    setToken(null);
-    setUser(null);
-    await Promise.all([store.del(TOKEN_KEY), store.del(USER_KEY)]).catch(() => {});
-  }, []);
+  }, [signOut]);
 
   const signIn = useCallback(async (email: string, password: string) => {
     const res = await loginRequest(email, password); // throws for non-admin: nothing is stored
     await store.set(TOKEN_KEY, res.token);
     await store.set(USER_KEY, JSON.stringify(res.user));
+    setAuthBridge(res.token, signOut);
     setToken(res.token);
     setUser(res.user);
-  }, []);
-
-  // Set during render so child effects/queries never fire with a stale token.
-  setAuthBridge(token, signOut);
+  }, [signOut]);
 
   const value = useMemo(() => ({ token, user, loading, signIn, signOut }), [token, user, loading, signIn, signOut]);
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
