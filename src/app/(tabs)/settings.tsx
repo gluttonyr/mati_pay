@@ -38,10 +38,10 @@ export default function Settings() {
     loggingOut.current = true;
     setBusy(true);
     try {
-      const deviceId = await getDeviceId().catch(() => null);
+      const id = deviceId ?? (await getDeviceId().catch(() => null));
       await stopCapture().catch(() => {});
       // Revoke while the JWT is still valid; a 401 here makes the interceptor sign out, which is harmless.
-      if (deviceId) await client.post('/sms-capture/device/revoke', { deviceId }).catch(() => {});
+      if (id) await client.post('/sms-capture/device/revoke', { deviceId: id }, { timeout: 5000 }).catch(() => {});
       await signOut(); // the route guard in _layout sends us back to /login
     } finally {
       loggingOut.current = false;
@@ -69,9 +69,7 @@ export default function Settings() {
         <Card>
           <Text style={styles.label}>Compte</Text>
           <Text style={styles.value}>{user ? `${user.prenom} ${user.nom}` : '-'}</Text>
-          {(user as { email?: string } | null)?.email ? (
-            <Text style={styles.sub}>{(user as { email?: string }).email}</Text>
-          ) : null}
+          {user?.email ? <Text style={styles.sub}>{user.email}</Text> : null}
           <Text style={[styles.label, styles.gap]}>Identifiant de l&apos;appareil</Text>
           <Text style={styles.sub} selectable>
             {deviceId ?? '-'}

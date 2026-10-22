@@ -1,6 +1,6 @@
 import client from './client';
 
-export type SessionUser = { id: number; nom: string; prenom: string; role: string };
+export type SessionUser = { id: number; nom: string; prenom: string; role: string; email?: string };
 
 export const ADMIN_ONLY_MESSAGE = 'Accès réservé aux administrateurs';
 
@@ -11,6 +11,6 @@ export async function loginRequest(email: string, password: string) {
   if (!access_token || user?.role !== 'ADMIN') throw new Error(ADMIN_ONLY_MESSAGE);
   return {
     token: access_token as string,
-    user: { id: user.id, nom: user.nom, prenom: user.prenom, role: user.role } as SessionUser,
+    user: { id: user.id, nom: user.nom, prenom: user.prenom, role: user.role, email: user.email ?? email } as SessionUser,
   };
 }
