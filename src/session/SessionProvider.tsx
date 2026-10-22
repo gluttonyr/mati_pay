@@ -33,10 +33,11 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   const signOut = useCallback(async () => {
-    await stopCapture().catch(() => {}); // stop the native service
     setAuthBridge(null, async () => {});
     setToken(null);
     setUser(null);
+    // fire-and-forget: a hung or throwing native call must not delay logout
+    (async () => stopCapture())().catch(() => {});
     await Promise.all([store.del(TOKEN_KEY), store.del(USER_KEY)]).catch(() => {});
   }, []);
 

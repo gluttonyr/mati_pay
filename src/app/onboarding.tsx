@@ -1,11 +1,11 @@
 import { useRouter } from 'expo-router';
 import { BatteryCharging, Bell, MessageSquareText } from 'lucide-react-native';
 import { useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text } from 'react-native';
+import { Linking, Pressable, ScrollView, StyleSheet, Text } from 'react-native';
 
 import { Card } from '@/components/Card';
 import { Screen } from '@/components/Screen';
-import { requestBatteryExemption, requestNotificationPermission, requestSmsPermission } from '@/capture/permissions';
+import { type StepResult, requestBatteryExemption, requestNotificationPermission, requestSmsPermission } from '@/capture/permissions';
 import { startCapture } from '@/capture/startCapture';
 import { colors } from '@/theme/colors';
 
@@ -17,15 +17,15 @@ const steps = [
 
 export default function Onboarding() {
   const router = useRouter();
-  const [done, setDone] = useState<Record<string, boolean>>({});
+  const [done, setDone] = useState<Record<string, StepResult | undefined>>({});
   const [error, setError] = useState<string | null>(null);
 
-  const run = async (key: string, fn: () => Promise<boolean>) => {
+  const run = async (key: string, fn: () => Promise<StepResult>) => {
     try {
       setError(null);
-      setDone((d) => ({ ...d, [key]: false }));
-      const ok = await fn();
-      setDone((d) => ({ ...d, [key]: ok }));
+      setDone((d) => ({ ...d, [key]: undefined }));
+      const res = await fn();
+      setDone((d) => ({ ...d, [key]: res }));
     } catch {
       setError('Indisponible sur cette plateforme');
     }
@@ -45,8 +45,17 @@ export default function Onboarding() {
             <Text style={styles.title}>{title}</Text>
             <Text style={styles.text}>{text}</Text>
             <Pressable style={styles.btn} accessibilityRole="button" onPress={() => run(key, fn)}>
-              <Text style={styles.btnText}>{done[key] ? 'Autorisé' : 'Autoriser'}</Text>
+              <Text style={styles.btnText}>{done[key] === 'granted' ? 'Autorisé' : 'Autoriser'}</Text>
             </Pressable>
+            {done[key] === 'denied' ? <Text style={styles.error}>Non autorisé pour le moment.</Text> : null}
+            {done[key] === 'blocked' ? (
+              <>
+                <Text style={styles.error}>Refus définitif : activez-le dans les réglages de l’appli.</Text>
+                <Pressable accessibilityRole="button" onPress={() => Linking.openSettings()}>
+                  <Text style={styles.skipText}>Ouvrir les réglages</Text>
+                </Pressable>
+              </>
+            ) : null}
           </Card>
         ))}
         {error ? <Text style={styles.error}>{error}</Text> : null}

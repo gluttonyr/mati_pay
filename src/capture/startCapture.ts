@@ -30,8 +30,8 @@ export async function refreshSenders() {
 // Register this device, fetch senders, start the native capture. Throws SMS_READER_UNAVAILABLE off Android.
 export async function startCapture() {
   const deviceId = await getDeviceId();
+  const senders = await fetchSenders(); // before register: register revokes the previous token
   const reg = await client.post('/sms-capture/device/register', { deviceId });
-  const senders = await fetchSenders();
   await SmsReader.start({
     apiUrl: Constants.expoConfig?.extra?.apiUrl,
     deviceId,

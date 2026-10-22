@@ -1,5 +1,6 @@
 import { useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
+import { AppState } from 'react-native';
 
 import * as SmsReader from '../../modules/sms-reader';
 import { startCapture } from './startCapture';
@@ -26,16 +27,29 @@ export function useCapture() {
   // Restart the service when it is down (e.g. after permissions were granted).
   const ensureStarted = useCallback(async () => {
     const s = await SmsReader.getStatus();
-    if (!s.running) await startCapture();
+    if (!s.running || s.authRequired) await startCapture();
     await refresh();
   }, [refresh]);
 
   // Poll only while the screen is focused.
   useFocusEffect(
     useCallback(() => {
-      refresh();
-      const t = setInterval(refresh, POLL_MS);
-      return () => clearInterval(t);
+      let t: ReturnType<typeof setInterval> | null = null;
+      const stop = () => {
+        if (t) clearInterval(t);
+        t = null;
+      };
+      const start = () => {
+        stop();
+        refresh();
+        t = setInterval(refresh, POLL_MS);
+      };
+      if (AppState.currentState === 'active') start();
+      const sub = AppState.addEventListener('change', (s) => (s === 'active' ? start() : stop()));
+      return () => {
+        stop();
+        sub.remove();
+      };
     }, [refresh]),
   );
 
