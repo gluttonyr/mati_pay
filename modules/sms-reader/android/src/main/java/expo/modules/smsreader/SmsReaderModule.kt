@@ -32,6 +32,7 @@ class SmsReaderModule : Module() {
       require(config.apiUrl.isNotBlank() && config.deviceToken.isNotBlank()) { "apiUrl and deviceToken are required" }
       val ctx = context
       CaptureConfig.save(ctx, config.apiUrl, config.deviceId, config.deviceToken, config.senders)
+      SmsQueueDb.get(ctx).retryFailed()
       CaptureService.tryStart(ctx)
       InboxResyncWorker.schedulePeriodic(ctx)
       InboxResyncWorker.runNow(ctx)
@@ -50,7 +51,9 @@ class SmsReaderModule : Module() {
     }
 
     AsyncFunction("resyncNow") {
-      InboxResyncWorker.runNow(context)
+      val ctx = context
+      SmsQueueDb.get(ctx).retryFailed()
+      InboxResyncWorker.runNow(ctx) // the resync ends by enqueuing UploadWorker
     }
 
     AsyncFunction("getStatus") {
@@ -61,7 +64,7 @@ class SmsReaderModule : Module() {
         "notificationPermission" to NotificationManagerCompat.from(ctx).areNotificationsEnabled(),
         "batteryOptimizationIgnored" to ctx.getSystemService(PowerManager::class.java).isIgnoringBatteryOptimizations(ctx.packageName),
         "authRequired" to CaptureConfig.authRequired(ctx),
-        "queueSize" to SmsQueueDb.get(ctx).pendingCount(),
+        "queueSize" to SmsQueueDb.get(ctx).unsentCount(),
         "lastReceivedAt" to CaptureConfig.lastReceivedAt(ctx),
         "lastSentAt" to CaptureConfig.lastSentAt(ctx),
         "lastError" to CaptureConfig.lastError(ctx),

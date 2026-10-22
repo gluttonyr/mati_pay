@@ -10,11 +10,12 @@ import android.content.Intent
 import android.content.pm.ServiceInfo
 import android.os.Build
 import android.os.Handler
+import android.os.HandlerThread
 import android.os.IBinder
-import android.os.Looper
 import android.util.Log
 import okhttp3.Call
 import okhttp3.Callback
+import okhttp3.Request
 import okhttp3.Response
 import org.json.JSONObject
 import java.io.IOException
@@ -28,7 +29,7 @@ class CaptureService : Service() {
     @Volatile var running = false
       private set
 
-    /** Starts the service; returns false when Android refuses a background start (Android 12+ / 15 boot rules). */
+    /** Starts the service; returns false when Android refuses a background start (Android 12+ rules). */
     fun tryStart(context: Context): Boolean = try {
       val intent = Intent(context, CaptureService::class.java)
       if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) context.startForegroundService(intent) else context.startService(intent)
@@ -43,7 +44,9 @@ class CaptureService : Service() {
     }
   }
 
-  private val handler = Handler(Looper.getMainLooper())
+  // Own thread: the tick reads EncryptedSharedPreferences and builds HTTP requests, which must stay off the main thread.
+  private val thread = HandlerThread("sms-reader-capture").apply { start() }
+  private val handler = Handler(thread.looper)
   private val tick = object : Runnable {
     override fun run() {
       sendHeartbeat()
@@ -57,13 +60,14 @@ class CaptureService : Service() {
   override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
     // startForeground must come first: startForegroundService() without it crashes the app even if we stop right away.
     try {
-      if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-        startForeground(NOTIFICATION_ID, buildNotification(), ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC)
+      // FOREGROUND_SERVICE_TYPE_SPECIAL_USE is API 34; below that the 2-arg call uses the manifest type.
+      if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+        startForeground(NOTIFICATION_ID, buildNotification(), ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE)
       } else {
         startForeground(NOTIFICATION_ID, buildNotification())
       }
     } catch (error: Exception) {
-      // ForegroundServiceStartNotAllowedException (e.g. dataSync quota exhausted): workers keep the queue moving.
+      // ForegroundServiceStartNotAllowedException (background start refused): workers keep the queue moving.
       Log.w(UploadWorker.TAG, "startForeground refused: ${error.message}")
       stopSelf()
       return START_NOT_STICKY
@@ -79,14 +83,9 @@ class CaptureService : Service() {
     return START_STICKY
   }
 
-  // Android 15+: dataSync services get at most 6 h per 24 h; we must stop or the app is killed with an ANR-like crash.
-  override fun onTimeout(startId: Int, fgsType: Int) {
-    Log.w(UploadWorker.TAG, "dataSync time limit reached; service stops, WorkManager keeps uploading")
-    stopSelf()
-  }
-
   override fun onDestroy() {
     handler.removeCallbacks(tick)
+    thread.quitSafely()
     running = false
     super.onDestroy()
   }
@@ -95,7 +94,13 @@ class CaptureService : Service() {
     val apiUrl = CaptureConfig.apiUrl(this)
     val token = CaptureConfig.deviceToken(this)
     if (apiUrl.isNullOrBlank() || token.isNullOrBlank() || CaptureConfig.authRequired(this)) return
-    val request = UploadWorker.post(apiUrl, token, "/sms-capture/heartbeat", JSONObject().put("ready", true))
+    val request: Request = try {
+      UploadWorker.post(apiUrl, token, "/sms-capture/heartbeat", JSONObject().put("ready", true))
+    } catch (error: IllegalArgumentException) {
+      Log.w(UploadWorker.TAG, "Heartbeat skipped, invalid apiUrl")
+      CaptureConfig.setLastError(this, "URL du serveur invalide")
+      return
+    }
     UploadWorker.http.newCall(request).enqueue(object : Callback {
       override fun onFailure(call: Call, e: IOException) {
         Log.w(UploadWorker.TAG, "Heartbeat failed: ${e.message}")

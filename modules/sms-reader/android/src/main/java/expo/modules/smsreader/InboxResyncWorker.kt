@@ -43,7 +43,7 @@ class InboxResyncWorker(context: Context, params: WorkerParameters) : CoroutineW
   override suspend fun doWork(): Result = withContext(Dispatchers.IO) {
     val context = applicationContext
     if (!CaptureConfig.isConfigured(context)) return@withContext Result.success()
-    // Restarts the heartbeat service after a reboot or an Android 15 dataSync timeout, when Android allows it.
+    // Restarts the heartbeat service after a reboot or a kill, when Android allows a background start.
     CaptureService.tryStart(context)
     if (context.checkSelfPermission(Manifest.permission.READ_SMS) != PackageManager.PERMISSION_GRANTED) {
       return@withContext Result.success()

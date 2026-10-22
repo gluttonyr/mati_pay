@@ -16,7 +16,7 @@ data class QueuedSms(
   val derniereErreur: String?,
 )
 
-/** Persistent SMS queue (spec section 5.2). Rows are never dropped before the backend has them, except ECHEC after repeated HTTP 400. */
+/** Persistent SMS queue (spec section 5.2). Rows are never dropped before the backend has them; ECHEC (repeated HTTP 400) waits for the next start()/resyncNow(). */
 class SmsQueueDb private constructor(context: Context) : SQLiteOpenHelper(context, "sms_reader_queue.db", null, 1) {
   companion object {
     const val PENDING = "EN_ATTENTE"
@@ -66,8 +66,17 @@ class SmsQueueDb private constructor(context: Context) : SQLiteOpenHelper(contex
   /** What the app shows in the local "En file" tab: everything not yet accepted by the backend. */
   fun unsent(): List<QueuedSms> = select("etatEnvoi != ?", arrayOf(SENT), null)
 
-  fun pendingCount(): Long =
-    android.database.DatabaseUtils.queryNumEntries(readableDatabase, "queue", "etatEnvoi = ?", arrayOf(PENDING))
+  /** queueSize: everything not yet accepted by the backend, ECHEC included (same rows as [unsent]). */
+  fun unsentCount(): Long =
+    android.database.DatabaseUtils.queryNumEntries(readableDatabase, "queue", "etatEnvoi != ?", arrayOf(SENT))
+
+  /** Gives ECHEC rows a fresh set of attempts (called from start() and resyncNow()). */
+  fun retryFailed() {
+    writableDatabase.update("queue", ContentValues().apply {
+      put("etatEnvoi", PENDING)
+      put("tentatives", 0)
+    }, "etatEnvoi = ?", arrayOf(FAILED))
+  }
 
   fun markSent(id: Long, now: Long) {
     writableDatabase.update("queue", ContentValues().apply {
