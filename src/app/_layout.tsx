@@ -1,18 +1,41 @@
-import { DarkTheme, DefaultTheme, ThemeProvider } from 'expo-router';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
-import { useColorScheme } from 'react-native';
+import { StatusBar } from 'expo-status-bar';
+import { useEffect } from 'react';
 
-import { AnimatedSplashOverlay } from '@/components/animated-icon';
-import AppTabs from '@/components/app-tabs';
+import { SessionProvider, useSession } from '@/session/SessionProvider';
 
 SplashScreen.preventAutoHideAsync();
+const queryClient = new QueryClient();
 
-export default function TabLayout() {
-  const colorScheme = useColorScheme();
+function RootNavigator() {
+  const { token, loading } = useSession();
+
+  useEffect(() => {
+    if (!loading) SplashScreen.hideAsync();
+  }, [loading]);
+
+  if (loading) return null;
   return (
-    <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-      <AnimatedSplashOverlay />
-      <AppTabs />
-    </ThemeProvider>
+    <Stack screenOptions={{ headerShown: false }}>
+      <Stack.Protected guard={!!token}>
+        <Stack.Screen name="(tabs)" />
+      </Stack.Protected>
+      <Stack.Protected guard={!token}>
+        <Stack.Screen name="login" />
+      </Stack.Protected>
+    </Stack>
+  );
+}
+
+export default function RootLayout() {
+  return (
+    <QueryClientProvider client={queryClient}>
+      <SessionProvider>
+        <StatusBar style="dark" />
+        <RootNavigator />
+      </SessionProvider>
+    </QueryClientProvider>
   );
 }
