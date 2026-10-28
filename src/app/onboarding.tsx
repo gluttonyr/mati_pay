@@ -1,7 +1,9 @@
 import { useRouter } from 'expo-router';
 import { BatteryCharging, Bell, MessageSquareText } from 'lucide-react-native';
 import { useState } from 'react';
-import { Linking, Pressable, ScrollView, StyleSheet, Text } from 'react-native';
+import { Linking, ScrollView, StyleSheet } from 'react-native';
+import { Pressable } from '@/components/Pressable';
+import { Text } from '@/components/Text';
 
 import { Card } from '@/components/Card';
 import { Screen } from '@/components/Screen';

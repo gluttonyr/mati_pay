@@ -1,11 +1,14 @@
 import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, FlatList, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, FlatList, StyleSheet, View } from 'react-native';
+import { Pressable } from '@/components/Pressable';
+import { Text, TextInput } from '@/components/Text';
 
 import { fmtMontant, listSms, type Sms, type SmsStatut } from '@/api/sms';
 import { Card } from '@/components/Card';
 import { Screen } from '@/components/Screen';
+import { usePollWhileFocused } from '@/hooks/usePollWhileFocused';
 import { colors } from '@/theme/colors';
 import { listLocalQueue } from '../../../../modules/sms-reader';
 
@@ -59,6 +62,8 @@ export default function SmsList() {
     getNextPageParam: (last, pages) => (pages.length * LIMIT < last.total ? pages.length + 1 : undefined),
   });
   const queue = useQuery({ queryKey: ['sms-local-queue'], enabled: !remote, queryFn: listLocalQueue, retry: false });
+  // New SMS reach the server in the background: refresh without asking for a pull.
+  usePollWhileFocused(() => (remote ? q.refetch() : queue.refetch()));
 
   const items = q.data?.pages.flatMap((p) => p.items) ?? [];
 

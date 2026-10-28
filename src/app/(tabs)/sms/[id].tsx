@@ -1,11 +1,14 @@
 import { useQuery } from '@tanstack/react-query';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, ScrollView, StyleSheet, View } from 'react-native';
+import { Pressable } from '@/components/Pressable';
+import { Text } from '@/components/Text';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { fmtMontant, getSms, type Sms } from '@/api/sms';
 import { Card } from '@/components/Card';
 import { StatusPill } from '@/components/StatusPill';
+import { MANUAL_ASSIGN_ENABLED } from '@/config/features';
 import { colors } from '@/theme/colors';
 
 const STATUT: Record<Sms['statut'], { label: string; tone: 'success' | 'warning' | 'neutral' }> = {
@@ -79,7 +82,7 @@ export default function SmsDetail() {
           </Card>
         ) : null}
 
-        {s.statut !== 'ATTRIBUE' && s.reference ? (
+        {MANUAL_ASSIGN_ENABLED && s.statut !== 'ATTRIBUE' && s.reference ? (
           <Pressable
             accessibilityRole="button"
             style={styles.button}

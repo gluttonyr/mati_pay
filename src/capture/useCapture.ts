@@ -3,16 +3,18 @@ import { useCallback, useState } from 'react';
 import { AppState } from 'react-native';
 
 import * as SmsReader from '../../modules/sms-reader';
-import { startCapture } from './startCapture';
+import { isCaptureEnabled, startCapture } from './startCapture';
 
 const POLL_MS = 5000;
 
 export function useCapture() {
   const [status, setStatus] = useState<SmsReader.CaptureStatus | null>(null);
   const [unavailable, setUnavailable] = useState(false);
+  const [enabled, setEnabled] = useState(true);
 
   const refresh = useCallback(async () => {
     try {
+      setEnabled(await isCaptureEnabled());
       setStatus(await SmsReader.getStatus());
     } catch (e) {
       if (String((e as Error).message).includes('SMS_READER_UNAVAILABLE')) setUnavailable(true);
@@ -53,5 +55,5 @@ export function useCapture() {
     }, [refresh]),
   );
 
-  return { status, unavailable, refresh, resyncNow, ensureStarted };
+  return { status, unavailable, enabled, refresh, resyncNow, ensureStarted };
 }

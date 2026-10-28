@@ -1,5 +1,6 @@
 package expo.modules.smsreader
 
+import android.Manifest
 import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
@@ -7,12 +8,14 @@ import android.app.PendingIntent
 import android.app.Service
 import android.content.Context
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.content.pm.ServiceInfo
 import android.os.Build
 import android.os.Handler
 import android.os.HandlerThread
 import android.os.IBinder
 import android.util.Log
+import androidx.core.content.ContextCompat
 import okhttp3.Call
 import okhttp3.Callback
 import okhttp3.Request
@@ -94,8 +97,13 @@ class CaptureService : Service() {
     val apiUrl = CaptureConfig.apiUrl(this)
     val token = CaptureConfig.deviceToken(this)
     if (apiUrl.isNullOrBlank() || token.isNullOrBlank() || CaptureConfig.authRequired(this)) return
+    // Only claim "ready" while SMS can really be read: the backend keeps deposits open on any ready device.
+    val smsOk = listOf(Manifest.permission.RECEIVE_SMS, Manifest.permission.READ_SMS)
+      .all { ContextCompat.checkSelfPermission(this, it) == PackageManager.PERMISSION_GRANTED }
+    val body = JSONObject().put("ready", smsOk)
+    if (!smsOk) body.put("reason", "capture_not_configured")
     val request: Request = try {
-      UploadWorker.post(apiUrl, token, "/sms-capture/heartbeat", JSONObject().put("ready", true))
+      UploadWorker.post(apiUrl, token, "/sms-capture/heartbeat", body)
     } catch (error: IllegalArgumentException) {
       Log.w(UploadWorker.TAG, "Heartbeat skipped, invalid apiUrl")
       CaptureConfig.setLastError(this, "URL du serveur invalide")

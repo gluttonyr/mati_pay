@@ -1,13 +1,16 @@
 import { useQuery } from '@tanstack/react-query';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, ScrollView, StyleSheet, View } from 'react-native';
+import { Pressable } from '@/components/Pressable';
+import { Text, TextInput } from '@/components/Text';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { fmtMontant, listSms, smsCandidates, type Sms } from '@/api/sms';
 import { getTransaction, STATUT_LABEL } from '@/api/transactions';
 import { Card } from '@/components/Card';
 import { StatusPill } from '@/components/StatusPill';
+import { MANUAL_ASSIGN_ENABLED } from '@/config/features';
 import { colors } from '@/theme/colors';
 
 const fmtDate = (d: string) => new Date(d).toLocaleString('fr-FR');
@@ -99,7 +102,7 @@ export default function TransactionDetail() {
           <Text style={styles.label}>Aucun SMS lié</Text>
         )}
 
-        {!validated ? (
+        {MANUAL_ASSIGN_ENABLED && !validated ? (
           <>
             <Pressable accessibilityRole="button" style={styles.button} onPress={() => setSearching(true)}>
               <Text style={styles.buttonText}>Chercher un SMS</Text>

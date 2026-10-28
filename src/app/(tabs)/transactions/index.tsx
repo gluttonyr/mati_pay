@@ -1,13 +1,16 @@
 import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, FlatList, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, FlatList, StyleSheet, View } from 'react-native';
+import { Pressable } from '@/components/Pressable';
+import { Text, TextInput } from '@/components/Text';
 
 import { fmtMontant, getSms } from '@/api/sms';
 import { listTransactions, STATUT_LABEL, type ListTransactionsParams, type Transaction } from '@/api/transactions';
 import { Card } from '@/components/Card';
 import { Screen } from '@/components/Screen';
 import { StatusPill } from '@/components/StatusPill';
+import { usePollWhileFocused } from '@/hooks/usePollWhileFocused';
 import { colors } from '@/theme/colors';
 
 type Filter = 'TOUS' | 'A_RAPPROCHER' | 'EN_ATTENTE' | 'VALIDEE' | 'REJETEE';
@@ -49,6 +52,7 @@ export default function TransactionsList() {
       }),
     getNextPageParam: (last, pages) => (last.hasMore ? pages.length + 1 : undefined),
   });
+  usePollWhileFocused(() => q.refetch(), 15000);
   // Selection ends once the SMS is attributed (assign invalidates ['sms'], which refetches this).
   const smsToAssign = useQuery({ queryKey: ['sms', 'detail', selectForSms], enabled: !!selectForSms, queryFn: () => getSms(selectForSms!) });
   const selecting = !!selectForSms && smsToAssign.isSuccess && smsToAssign.data.statut !== 'ATTRIBUE';

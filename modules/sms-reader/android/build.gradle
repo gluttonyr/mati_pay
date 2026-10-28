@@ -11,6 +11,8 @@ android {
   defaultConfig {
     versionCode 1
     versionName '1.0.0'
+    // Applied to the app's R8 pass: keeps what WorkManager and the manifest create by reflection.
+    consumerProguardFiles 'proguard-rules.pro'
   }
 }
 
